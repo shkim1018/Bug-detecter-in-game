@@ -20,6 +20,7 @@ class Game:
         self.font_name = pg.font.match_font(FONT_NAME)
         self.pause = False
         self.flag = 0
+        self.playing = False
         base_dir = "log"
         self.logging_name = str(datetime.now()) + ".log"
         self.logging_name = os.path.join(base_dir, self.logging_name)
@@ -66,11 +67,14 @@ class Game:
             self.all_sprites.add(b)
 
         self.camera = Camera(WIDTH*6,HEIGHT)
+
         self.run()
 
     def run(self):
         # Game Loop
         self.playing = True
+        self.elapsed_time = 0 # running time
+        self.time = 0 # 로그 전달 용 time(초 단위)
         while self.playing:
             self.dt = self.clock.tick(FPS) # self.dt : 진행 시간을 저장하는 변수.
             self.elapsed_time += self.dt 
@@ -80,6 +84,7 @@ class Game:
             if self.ball.pos.x>2700: #original : 4660
                 logging.info(f"[{self.elapsed_time * 0.001 + self.time:.3f}초 로그] 특이사항: 게임 클리어, Ball pos: {self.ball.pos}, vel: {self.ball.vel}, key 입력: {self.ball.pressed_keys}")
                 self.flag=1
+                self.playing = False
                 self.show_go_screen()
     def update(self):
         self.all_sprites.update()
@@ -92,6 +97,7 @@ class Game:
         if self.time >= 15:
             self.ball.frozen = True
         if self.time >= 20:
+            self.playing = False
             self.quitgame()
 
         if self.ball.vel.y > 0:
@@ -124,6 +130,7 @@ class Game:
         if hits:
             logging.info(f"[{self.elapsed_time * 0.001 + self.time:.3f}초 로그] 특이사항: 장애물 충돌, Ball pos: {self.ball.pos}, vel: {self.ball.vel}, key 입력: {self.ball.pressed_keys}")
             self.flag = 0
+            self.playing = False
             self.show_go_screen()
 
         self.camera.update(self.ball)
@@ -148,6 +155,8 @@ class Game:
     
     def show_start_screen(self):
         waiting = True
+        self.elapsed_time = 0 # running time
+        self.time = 0 # 로그 전달 용 time(초 단위)
         while waiting:
             self.display_screen.fill(BACKGROUND_COLOR)
             text = Button(self,TITLE,400,100,0,0,BACKGROUND_COLOR,BACKGROUND_COLOR,90)
@@ -184,6 +193,8 @@ class Game:
             
     def show_go_screen(self):
         waiting = True
+        self.elapsed_time = 0 # running time
+        self.time = 0 # 로그 전달 용 time(초 단위)
         while waiting:
             self.display_screen.fill(BACKGROUND_COLOR)
             if self.flag==1:

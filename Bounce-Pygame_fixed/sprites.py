@@ -38,8 +38,11 @@ class Ball(pg.sprite.Sprite):
             name for keycode, name in self.tracked_keys.items()
             if self.keys[keycode]
         ]
-        
-        if self.frozen == False:
+        if self.frozen == True: #implement frozen bug.
+            self.vel = vec(0,0)
+            self.acc = vec(0,0)
+
+        else:
             self.acc = vec(0,BALL_GRAVITY)
             if self.keys[pg.K_LEFT]:
                 self.acc.x = -BALL_ACC
@@ -58,9 +61,7 @@ class Ball(pg.sprite.Sprite):
 
             self.rect.midbottom = self.pos
 
-        else: # self.frozen == True: #implement frozen bug.
-            self.vel = vec(0,0)
-            self.acc = vec(0,0)
+
 
 class Platform(pg.sprite.Sprite):
     def __init__(self,x_pos,y_pos,width,height):
