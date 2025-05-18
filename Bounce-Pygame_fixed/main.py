@@ -2,10 +2,12 @@ import pygame as pg
 import random
 from settings import *
 from sprites import *
-from os import path
+import os
 import math
 from Camera import *
 from buttons import *
+import logging
+from datetime import datetime
 
 class Game:
     def __init__(self):
@@ -18,12 +20,26 @@ class Game:
         self.font_name = pg.font.match_font(FONT_NAME)
         self.pause = False
         self.flag = 0
-
+        base_dir = "log"
+        self.logging_name = str(datetime.now()) + ".log"
+        self.logging_name = os.path.join(base_dir, self.logging_name)
+        logging.basicConfig(
+            level=logging.DEBUG,  # 기본 로그 레벨 설정
+            format='[%(levelname)s] %(message)s',
+            handlers=[
+                logging.FileHandler(self.logging_name)       # 파일로도 저장
+                # logging.StreamHandler()                # 콘솔에도 출력
+            ]
+            )
     def new(self):
+        logging.info('Game start!')
+        self.elapsed_time = 0 # running time
+        self.time = 0 # 로그 전달 용 time(초 단위)
         self.score = 0
         self.all_sprites = pg.sprite.Group()
         self.platforms = pg.sprite.Group()
         self.spikes = pg.sprite.Group()
+        self.spikes_bug = pg.sprite.Group()
         self.bases = pg.sprite.Group()
         self.walls = pg.sprite.Group()
         self.ball = Ball(self)
@@ -40,6 +56,10 @@ class Game:
             s = Spikes(*spike)
             self.spikes.add(s)
             self.all_sprites.add(s)
+        for spike_bug in SPIKES_BUG_LIST:
+            s = Spikes_bug(*spike_bug)
+            self.spikes_bug.add(s)
+            self.all_sprites.add(s)
         for base in BASE_LIST:
             b = Platform_base(*base)
             self.bases.add(b)
@@ -52,15 +72,28 @@ class Game:
         # Game Loop
         self.playing = True
         while self.playing:
-            self.clock.tick(FPS)
+            self.dt = self.clock.tick(FPS) # self.dt : 진행 시간을 저장하는 변수.
+            self.elapsed_time += self.dt 
             self.events()
             self.update()
             self.draw()
-            if self.ball.pos.x> 4660:
+            if self.ball.pos.x>2700: #original : 4660
+                logging.info(f"[{self.elapsed_time * 0.001 + self.time:.3f}초 로그] 특이사항: 게임 클리어, Ball pos: {self.ball.pos}, vel: {self.ball.vel}, key 입력: {self.ball.pressed_keys}")
                 self.flag=1
                 self.show_go_screen()
     def update(self):
         self.all_sprites.update()
+
+        if self.elapsed_time >= 1000: #시간 따른 로그 출력(장애물 관련 로그 x)
+            logging.info(f"[{self.elapsed_time * 0.001 + self.time:.3f}초 로그] 특이사항: 주기적 로그, Ball pos: {self.ball.pos}, vel: {self.ball.vel}, key 입력: {self.ball.pressed_keys}")
+            self.elapsed_time = 0
+            self.time += 1
+
+        if self.time >= 15:
+            self.ball.frozen = True
+        if self.time >= 20:
+            self.quitgame()
+
         if self.ball.vel.y > 0:
             hits = pg.sprite.spritecollide(self.ball, self.platforms, False)
             if hits:
@@ -81,11 +114,20 @@ class Game:
             if hits:
                 self.ball.pos.x = hits[0].rect.right+15
                 self.ball.vel.x = 0
+        
+        #bug spike 정의(아무 변화도 일어나지않도록 설정)
+        if pg.sprite.spritecollide(self.ball, self.spikes_bug, False):
+            logging.info(f"[{self.elapsed_time * 0.001 + self.time:.3f}초 로그] 특이사항: 장애물 충돌, Ball pos: {self.ball.pos}, vel: {self.ball.vel}, key 입력: {self.ball.pressed_keys}")
+            self.ball.frozen = True
+
         hits = pg.sprite.spritecollide(self.ball, self.spikes, False)
         if hits:
-             self.show_go_screen()
+            logging.info(f"[{self.elapsed_time * 0.001 + self.time:.3f}초 로그] 특이사항: 장애물 충돌, Ball pos: {self.ball.pos}, vel: {self.ball.vel}, key 입력: {self.ball.pressed_keys}")
+            self.flag = 0
+            self.show_go_screen()
 
         self.camera.update(self.ball)
+
     def events(self):
         for event in pg.event.get():
             if event.type == pg.QUIT:
