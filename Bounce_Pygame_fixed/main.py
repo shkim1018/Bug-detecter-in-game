@@ -12,10 +12,9 @@ import logging
 from datetime import datetime
 
 class Game:
-    def __init__(self, render_mode=False, log_mode=True, bug_mode=True):
+    def __init__(self, log_mode=True, bug_mode=True):
         pg.init()
         # pg.mixer.init() # We might not use the audio.
-        self.render_mode = render_mode
         self.log_mode = log_mode
         self.bug_mode = bug_mode
 
@@ -26,7 +25,7 @@ class Game:
         self.running = True
         self.font_name = pg.font.match_font(FONT_NAME)
         self.pause = False
-        self.flag = 0
+        self.flag = 1
         self.playing = False
         if self.log_mode:
             base_dir = "log"
@@ -119,6 +118,9 @@ class Game:
             if self.time >= 20:
                 self.playing = False
                 self.quitgame()
+
+        if self.time >= 20: # training process간소화를 위해 20초 후 게임 종료.
+            self.playing = False
 
         if self.ball.vel.y > 0:
             hits = pg.sprite.spritecollide(self.ball, self.platforms, False)
@@ -277,10 +279,6 @@ class Game:
         # 2. 상태 업데이트
         self.update()
 
-        if self.render_mode:
-        # 3. 화면 그리기
-            self.draw()
-
         # 4. 종료 판단
         done = not self.playing
         reward = self._get_reward()
@@ -290,17 +288,24 @@ class Game:
 
     def _get_observation(self):
         # 정규화 적용
+        right_spikes = [x-self.ball.pos.x for x,_ in SPIKES_LIST if self.ball.pos.x <= x]
+        if right_spikes:
+            distance =  min(right_spikes)
+        else:
+            distance = 0.0
+        
         return [
-            self.ball.pos.x / (WIDTH * 6),
+            self.ball.pos.x / 2760,
             self.ball.pos.y / HEIGHT,
             self.ball.vel.x / 10,
-            self.ball.vel.y / 10
+            self.ball.vel.y / 10,
+            distance / 800
         ]
 
     def _get_reward(self):
         # 예시: 오른쪽으로 갈수록 보상 + 장애물에 부딪히면 -10
-        if self.ball.frozen:
-            return -10.0
+        if self.flag == 0:
+            return -100
         return self.ball.pos.x * 0.01
 
 if __name__ == '__main__':

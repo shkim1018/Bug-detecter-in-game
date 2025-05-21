@@ -78,6 +78,9 @@ class Ball(pg.sprite.Sprite):
         self.acc.x += self.vel.x * BALL_FRICTION
         self.vel += self.acc
         self.pos += self.vel + 0.5 * self.acc
+        
+        if self.pos.x < 0:
+            self.pos.x = WIDTH
         self.rect.midbottom = self.pos
 
 
