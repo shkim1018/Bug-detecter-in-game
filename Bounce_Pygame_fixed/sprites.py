@@ -7,7 +7,8 @@ class Ball(pg.sprite.Sprite):
     def __init__(self,game):
         pg.sprite.Sprite.__init__(self)
         self.game = game
-        self.image = pg.image.load('Assets/ball2.png').convert()
+        self.image = pg.image.load('Assets/ball2.png') #bot training을 위해 convert 제외.
+        #self.image = pg.image.load('Assets/ball2.png').convert()
         self.rect = self.image.get_rect()
         self.rect.center = (WIDTH/2,HEIGHT/2)
         self.pos = vec(100,80)
@@ -104,7 +105,8 @@ class Wall(pg.sprite.Sprite):
 class Spikes(pg.sprite.Sprite):
     def __init__(self,x_pos,y_pos):
         pg.sprite.Sprite.__init__(self)
-        self.image = pg.image.load('Assets/spike.png').convert()
+        self.image = pg.image.load('Assets/spike.png')
+        # self.image = pg.image.load('Assets/spike.png').convert()
         self.rect = self.image.get_rect()
         self.rect.x = x_pos
         self.rect.y = y_pos
@@ -112,7 +114,8 @@ class Spikes(pg.sprite.Sprite):
 class Spikes_bug(pg.sprite.Sprite):
     def __init__(self,x_pos,y_pos):
         pg.sprite.Sprite.__init__(self)
-        self.image = pg.image.load('Assets/spike.png').convert()
+        self.image = pg.image.load('Assets/spike.png')
+        # self.image = pg.image.load('Assets/spike.png').convert()
         self.rect = self.image.get_rect()
         self.rect.x = x_pos
         self.rect.y = y_pos

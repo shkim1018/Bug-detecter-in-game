@@ -1,8 +1,10 @@
 import pygame as pg
 import random
 from settings import *
+from bug_settings import *
 from sprites import *
 import os
+import sys
 import math
 from Camera import *
 from buttons import *
@@ -10,10 +12,14 @@ import logging
 from datetime import datetime
 
 class Game:
-    def __init__(self):
+    def __init__(self, render_mode=False, log_mode=True, bug_mode=True):
         pg.init()
         # pg.mixer.init() # We might not use the audio.
-        self.train_visualize = False
+        self.render_mode = render_mode
+        self.log_mode = log_mode
+        self.bug_mode = bug_mode
+
+
         self.display_screen = pg.display.set_mode((WIDTH, HEIGHT))
         pg.display.set_caption(TITLE)
         self.clock = pg.time.Clock()
@@ -22,19 +28,22 @@ class Game:
         self.pause = False
         self.flag = 0
         self.playing = False
-        base_dir = "log"
-        self.logging_name = str(datetime.now()) + ".log"
-        self.logging_name = os.path.join(base_dir, self.logging_name)
-        logging.basicConfig(
-            level=logging.DEBUG,  # 기본 로그 레벨 설정
-            format='[%(levelname)s] %(message)s',
-            handlers=[
-                logging.FileHandler(self.logging_name)       # 파일로도 저장
-                # logging.StreamHandler()                # 콘솔에도 출력
-            ]
-            )
+        if self.log_mode:
+            base_dir = "log"
+            os.makedirs(base_dir, exist_ok=True)
+            self.logging_name = str(datetime.now()) + ".log"
+            self.logging_name = os.path.join(base_dir, self.logging_name)
+            logging.basicConfig(
+                level=logging.DEBUG,  # 기본 로그 레벨 설정
+                format='[%(levelname)s] %(message)s',
+                handlers=[
+                    logging.FileHandler(self.logging_name)       # 파일로도 저장
+                    # logging.StreamHandler()                # 콘솔에도 출력
+                ]
+                )
     def new(self):
-        logging.info('Game start!')
+        if self.log_mode:
+            logging.info('Game start!')
         self.elapsed_time = 0 # running time
         self.time = 0 # 로그 전달 용 time(초 단위)
         self.score = 0
@@ -54,14 +63,21 @@ class Game:
             w = Wall(*wall)
             self.walls.add(w)
             self.all_sprites.add(w)
-        for spike in SPIKES_LIST:
-            s = Spikes(*spike)
-            self.spikes.add(s)
-            self.all_sprites.add(s)
-        for spike_bug in SPIKES_BUG_LIST:
-            s = Spikes_bug(*spike_bug)
-            self.spikes_bug.add(s)
-            self.all_sprites.add(s)
+
+        if self.bug_mode:
+            for spike in SPIKES_NORMAL_LIST:
+                s = Spikes(*spike)
+                self.spikes.add(s)
+                self.all_sprites.add(s)
+            for spike_bug in SPIKES_BUG_LIST:
+                s = Spikes_bug(*spike_bug)
+                self.spikes_bug.add(s)
+                self.all_sprites.add(s)            
+        else: # there's no bug.
+            for spike in SPIKES_LIST:
+                s = Spikes(*spike)
+                self.spikes.add(s)
+                self.all_sprites.add(s)
         for base in BASE_LIST:
             b = Platform_base(*base)
             self.bases.add(b)
@@ -83,7 +99,8 @@ class Game:
             self.update()
             self.draw()
             if self.ball.pos.x>2700: #original : 4660
-                logging.info(f"[{self.elapsed_time * 0.001 + self.time:.3f}초 로그] 특이사항: 게임 클리어, Ball pos: {self.ball.pos}, vel: {self.ball.vel}, key 입력: {self.ball.pressed_keys}")
+                if self.log_mode:
+                    logging.info(f"[{self.elapsed_time * 0.001 + self.time:.3f}초 로그] 특이사항: 게임 클리어, Ball pos: {self.ball.pos}, vel: {self.ball.vel}, key 입력: {self.ball.pressed_keys}")
                 self.flag=1
                 self.playing = False
                 self.show_go_screen()
@@ -91,15 +108,17 @@ class Game:
         self.all_sprites.update()
 
         if self.elapsed_time >= 1000: #시간 따른 로그 출력(장애물 관련 로그 x)
-            logging.info(f"[{self.elapsed_time * 0.001 + self.time:.3f}초 로그] 특이사항: 주기적 로그, Ball pos: {self.ball.pos}, vel: {self.ball.vel}, key 입력: {self.ball.pressed_keys}")
+            if self.log_mode:
+                logging.info(f"[{self.elapsed_time * 0.001 + self.time:.3f}초 로그] 특이사항: 주기적 로그, Ball pos: {self.ball.pos}, vel: {self.ball.vel}, key 입력: {self.ball.pressed_keys}")
             self.elapsed_time = 0
             self.time += 1
 
-        if self.time >= 15:
-            self.ball.frozen = True
-        if self.time >= 20:
-            self.playing = False
-            self.quitgame()
+        if self.bug_mode:
+            if self.time >= 15:
+                self.ball.frozen = True
+            if self.time >= 20:
+                self.playing = False
+                self.quitgame()
 
         if self.ball.vel.y > 0:
             hits = pg.sprite.spritecollide(self.ball, self.platforms, False)
@@ -121,15 +140,18 @@ class Game:
             if hits:
                 self.ball.pos.x = hits[0].rect.right+15
                 self.ball.vel.x = 0
-        
-        #bug spike 정의(아무 변화도 일어나지않도록 설정)
-        if pg.sprite.spritecollide(self.ball, self.spikes_bug, False):
-            logging.info(f"[{self.elapsed_time * 0.001 + self.time:.3f}초 로그] 특이사항: 장애물 충돌, Ball pos: {self.ball.pos}, vel: {self.ball.vel}, key 입력: {self.ball.pressed_keys}")
-            self.ball.frozen = True
+
+        if self.bug_mode:
+            #bug spike 정의(아무 변화도 일어나지않도록 설정)
+            if pg.sprite.spritecollide(self.ball, self.spikes_bug, False):
+                if self.log_mode:
+                    logging.info(f"[{self.elapsed_time * 0.001 + self.time:.3f}초 로그] 특이사항: 장애물 충돌, Ball pos: {self.ball.pos}, vel: {self.ball.vel}, key 입력: {self.ball.pressed_keys}")
+                self.ball.frozen = True
 
         hits = pg.sprite.spritecollide(self.ball, self.spikes, False)
         if hits:
-            logging.info(f"[{self.elapsed_time * 0.001 + self.time:.3f}초 로그] 특이사항: 장애물 충돌, Ball pos: {self.ball.pos}, vel: {self.ball.vel}, key 입력: {self.ball.pressed_keys}")
+            if self.log_mode:
+                logging.info(f"[{self.elapsed_time * 0.001 + self.time:.3f}초 로그] 특이사항: 장애물 충돌, Ball pos: {self.ball.pos}, vel: {self.ball.vel}, key 입력: {self.ball.pressed_keys}")
             self.flag = 0
             self.playing = False
             self.show_go_screen()
@@ -140,7 +162,7 @@ class Game:
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 pg.quit()
-                quit()
+                sys.exit()
             if event.type == pg.KEYDOWN:
                 if event.key == pg.K_p:
                     self.pause = True
@@ -171,7 +193,7 @@ class Game:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     pg.quit()
-                    quit()
+                    sys.exit()
             pg.display.update()
 
     def pause_game(self): 
@@ -213,12 +235,12 @@ class Game:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     pg.quit()
-                    quit()
+                    sys.exit()
             pg.display.update()
 
     def quitgame(self):
         pg.quit()
-        quit()
+        sys.exit()
 
     def show_instruction(self):
         waiting = True
@@ -235,15 +257,17 @@ class Game:
             for event in pg.event.get():
                         if event.type == pg.QUIT:
                             pg.quit()
-                            quit()
+                            sys.exit()
             pg.display.update()
+
+    ### from now: Bot setting
 
     def reset(self):
         self.new()  # 기존에 있던 초기화 호출
         obs = self._get_observation()
         return obs
 
-    def step(self, action):
+    def step(self, action): 
         if not self.playing:
             return self._get_observation(), 0.0, True, {}
 
@@ -253,7 +277,7 @@ class Game:
         # 2. 상태 업데이트
         self.update()
 
-        if self.train_visualize:
+        if self.render_mode:
         # 3. 화면 그리기
             self.draw()
 
