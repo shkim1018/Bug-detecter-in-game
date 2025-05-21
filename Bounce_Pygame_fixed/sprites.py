@@ -60,6 +60,25 @@ class Ball(pg.sprite.Sprite):
                 self.pos.x = WIDTH
 
             self.rect.midbottom = self.pos
+    
+    def step(self, action):
+        if self.frozen:
+            return
+
+        self.acc = vec(0, BALL_GRAVITY)
+
+        if action == 0:  # 왼쪽
+            self.acc.x = -BALL_ACC
+        elif action == 1:  # 오른쪽
+            self.acc.x = BALL_ACC
+        elif action == 2:  # 점프
+            self.ball_jump()
+
+        self.acc.x += self.vel.x * BALL_FRICTION
+        self.vel += self.acc
+        self.pos += self.vel + 0.5 * self.acc
+        self.rect.midbottom = self.pos
+
 
 
 

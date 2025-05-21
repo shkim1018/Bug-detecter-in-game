@@ -13,6 +13,7 @@ class Game:
     def __init__(self):
         pg.init()
         # pg.mixer.init() # We might not use the audio.
+        self.train_visualize = False
         self.display_screen = pg.display.set_mode((WIDTH, HEIGHT))
         pg.display.set_caption(TITLE)
         self.clock = pg.time.Clock()
@@ -237,11 +238,71 @@ class Game:
                             quit()
             pg.display.update()
 
+    def reset(self):
+        self.new()  # 기존에 있던 초기화 호출
+        obs = self._get_observation()
+        return obs
+
+    def step(self, action):
+        if not self.playing:
+            return self._get_observation(), 0.0, True, {}
+
+        # 1. action 전달
+        self.ball.step(action)
+
+        # 2. 상태 업데이트
+        self.update()
+
+        if self.train_visualize:
+        # 3. 화면 그리기
+            self.draw()
+
+        # 4. 종료 판단
+        done = not self.playing
+        reward = self._get_reward()
+        obs = self._get_observation()
+
+        return obs, reward, done, {}
+
+    def _get_observation(self):
+        # 정규화 적용
+        return [
+            self.ball.pos.x / (WIDTH * 6),
+            self.ball.pos.y / HEIGHT,
+            self.ball.vel.x / 10,
+            self.ball.vel.y / 10
+        ]
+
+    def _get_reward(self):
+        # 예시: 오른쪽으로 갈수록 보상 + 장애물에 부딪히면 -10
+        if self.ball.frozen:
+            return -10.0
+        return self.ball.pos.x * 0.01
 
 if __name__ == '__main__':
-    g = Game()
-    g.show_start_screen()
-    while g.running:
-        g.new()
-        g.show_go_screen()
-    pg.quit()
+    # g = Game()
+    # g.show_start_screen()
+    # while g.running:
+    #     g.new()
+    #     g.show_go_screen()
+    # pg.quit()
+
+
+    import random
+    class DummyAgent:
+        def select_action(self, obs):
+            return random.choice([0, 1, 2])
+
+    if __name__ == '__main__':
+        game = Game()
+        agent = DummyAgent()
+
+        obs = game.reset()
+        done = False
+
+        while not done:
+            action = agent.select_action(obs)
+            obs, reward, done, info = game.step(action)
+            pg.time.delay(16)  # 60 FPS
+
+        game.quitgame()
