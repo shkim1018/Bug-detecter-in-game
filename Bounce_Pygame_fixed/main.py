@@ -12,11 +12,14 @@ import logging
 from datetime import datetime
 
 class Game:
-    def __init__(self, log_mode=True, bug_mode=True):
+    def __init__(self, log_mode=True, bug_mode=True, control_mode="bot", train_mode=True):
         pg.init()
         # pg.mixer.init() # We might not use the audio.
         self.log_mode = log_mode
         self.bug_mode = bug_mode
+        self.control_mode = control_mode # "bot" or "human"
+        self.train_mode = train_mode
+        self.render_mode = 
 
 
         self.display_screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -52,7 +55,7 @@ class Game:
         self.spikes_bug = pg.sprite.Group()
         self.bases = pg.sprite.Group()
         self.walls = pg.sprite.Group()
-        self.ball = Ball(self)
+        self.ball = Ball(self, control_mode=self.control_mode)
         self.all_sprites.add(self.ball)
         for plat in PLATFORM_LIST:
             p = Platform(*plat)
@@ -83,8 +86,8 @@ class Game:
             self.all_sprites.add(b)
 
         self.camera = Camera(WIDTH*6,HEIGHT)
-
-        self.run()
+        if self.control_mode == "human":
+            self.run()
 
     def run(self):
         # Game Loop
@@ -102,7 +105,10 @@ class Game:
                     logging.info(f"[{self.elapsed_time * 0.001 + self.time:.3f}초 로그] 특이사항: 게임 클리어, Ball pos: {self.ball.pos}, vel: {self.ball.vel}, key 입력: {self.ball.pressed_keys}")
                 self.flag=1
                 self.playing = False
-                self.show_go_screen()
+                if self.train_mode:
+                    return
+                else:
+                    self.show_go_screen()
     def update(self):
         self.all_sprites.update()
 
@@ -156,19 +162,23 @@ class Game:
                 logging.info(f"[{self.elapsed_time * 0.001 + self.time:.3f}초 로그] 특이사항: 장애물 충돌, Ball pos: {self.ball.pos}, vel: {self.ball.vel}, key 입력: {self.ball.pressed_keys}")
             self.flag = 0
             self.playing = False
-            self.show_go_screen()
+            if self.train_mode:
+                return
+            else:
+                self.show_go_screen()
 
         self.camera.update(self.ball)
 
     def events(self):
-        for event in pg.event.get():
-            if event.type == pg.QUIT:
-                pg.quit()
-                sys.exit()
-            if event.type == pg.KEYDOWN:
-                if event.key == pg.K_p:
-                    self.pause = True
-                    self.pause_game()
+        if self.control_mode == "human":
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    pg.quit()
+                    sys.exit()
+                if event.type == pg.KEYDOWN:
+                    if event.key == pg.K_p:
+                        self.pause = True
+                        self.pause_game()
                     
                 
     def draw(self):
@@ -242,7 +252,7 @@ class Game:
 
     def quitgame(self):
         pg.quit()
-        sys.exit()
+        # quit()
 
     def show_instruction(self):
         waiting = True
@@ -261,15 +271,19 @@ class Game:
                             pg.quit()
                             sys.exit()
             pg.display.update()
-
+ 
     ### from now: Bot setting
 
     def reset(self):
         self.new()  # 기존에 있던 초기화 호출
+        self.playing = True
         obs = self._get_observation()
+        self.update()
         return obs
 
     def step(self, action): 
+        # print(f"[Ball.step] called with action: {action}")
+        print(f"action: {action}, acc: {self.ball.acc}, vel: {self.ball.vel}, pos: {self.ball.pos}")
         if not self.playing:
             return self._get_observation(), 0.0, True, {}
 
@@ -297,15 +311,15 @@ class Game:
         return [
             self.ball.pos.x / 2760,
             self.ball.pos.y / HEIGHT,
-            self.ball.vel.x / 10,
-            self.ball.vel.y / 10,
+            self.ball.vel.x / 20,
+            self.ball.vel.y / 20,
             distance / 800
         ]
 
     def _get_reward(self):
         # 예시: 오른쪽으로 갈수록 보상 + 장애물에 부딪히면 -10
         if self.flag == 0:
-            return -100
+            return -10
         return self.ball.pos.x * 0.01
 
 if __name__ == '__main__':

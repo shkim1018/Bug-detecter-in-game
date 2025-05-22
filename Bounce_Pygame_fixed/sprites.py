@@ -4,9 +4,11 @@ import Vector
 vec = Vector.Vec2d
 
 class Ball(pg.sprite.Sprite):
-    def __init__(self,game):
+    def __init__(self,game, control_mode="bot", train_mode):
         pg.sprite.Sprite.__init__(self)
         self.game = game
+        self.control_mode = control_mode #"human" or "bot"
+        self.train_mode = train_mode
         self.image = pg.image.load('Assets/ball2.png') #bot training을 위해 convert 제외.
         #self.image = pg.image.load('Assets/ball2.png').convert()
         self.rect = self.image.get_rect()
@@ -33,17 +35,24 @@ class Ball(pg.sprite.Sprite):
        # if direction == 'l':
         pass
 
-    def update(self):
-        self.keys = pg.key.get_pressed()
-        self.pressed_keys = [
-            name for keycode, name in self.tracked_keys.items()
-            if self.keys[keycode]
-        ]
+    def update(self ):
+        if self.control_mode == "bot":
+            if self.train_mode:
+                return
+            else:
+                self.step(action)
+        
         if self.frozen == True: #implement frozen bug.
             self.vel = vec(0,0)
             self.acc = vec(0,0)
-
-        else:
+            return
+        
+        if self.control_mode == "human":
+            self.keys = pg.key.get_pressed()
+            self.pressed_keys = [
+                name for keycode, name in self.tracked_keys.items()
+                if self.keys[keycode]
+            ]
             self.acc = vec(0,BALL_GRAVITY)
             if self.keys[pg.K_LEFT]:
                 self.acc.x = -BALL_ACC
