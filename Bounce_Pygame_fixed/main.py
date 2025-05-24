@@ -10,17 +10,18 @@ from Camera import *
 from buttons import *
 import logging
 from datetime import datetime
+import numpy as np
 
 class Game:
-    def __init__(self, log_mode=True, bug_mode=True, control_mode="bot", train_mode=True):
+    def __init__(self, model=None, render_mode=False, log_mode=False, bug_mode=True, control_mode="bot", train_mode=True):
         pg.init()
         # pg.mixer.init() # We might not use the audio.
+        self.model = model
         self.log_mode = log_mode
         self.bug_mode = bug_mode
         self.control_mode = control_mode # "bot" or "human"
         self.train_mode = train_mode
-        self.render_mode = 
-
+        self.render_mode = render_mode
 
         self.display_screen = pg.display.set_mode((WIDTH, HEIGHT))
         pg.display.set_caption(TITLE)
@@ -55,7 +56,7 @@ class Game:
         self.spikes_bug = pg.sprite.Group()
         self.bases = pg.sprite.Group()
         self.walls = pg.sprite.Group()
-        self.ball = Ball(self, control_mode=self.control_mode)
+        self.ball = Ball(self, control_mode=self.control_mode, train_mode=self.train_mode)
         self.all_sprites.add(self.ball)
         for plat in PLATFORM_LIST:
             p = Platform(*plat)
@@ -86,7 +87,7 @@ class Game:
             self.all_sprites.add(b)
 
         self.camera = Camera(WIDTH*6,HEIGHT)
-        if self.control_mode == "human":
+        if not self.train_mode:
             self.run()
 
     def run(self):
@@ -109,7 +110,14 @@ class Game:
                     return
                 else:
                     self.show_go_screen()
+
     def update(self):
+        if self.control_mode == "bot" and not self.train_mode: # 즉 bot을 가지고 자동으로 플레이하고 싶을 때,
+            self.playing = True
+            obs = np.array(self._get_observation(), dtype=np.float32).reshape(1, -1)
+            action, _ = self.model.predict(obs)
+            self.ball.step(action)
+
         self.all_sprites.update()
 
         if self.elapsed_time >= 1000: #시간 따른 로그 출력(장애물 관련 로그 x)
@@ -320,7 +328,7 @@ class Game:
         # 예시: 오른쪽으로 갈수록 보상 + 장애물에 부딪히면 -10
         if self.flag == 0:
             return -10
-        return self.ball.pos.x * 0.01
+        return self.ball.pos.x * 0.02
 
 if __name__ == '__main__':
     # g = Game()

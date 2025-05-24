@@ -4,7 +4,7 @@ import Vector
 vec = Vector.Vec2d
 
 class Ball(pg.sprite.Sprite):
-    def __init__(self,game, control_mode="bot", train_mode):
+    def __init__(self,game, control_mode, train_mode):
         pg.sprite.Sprite.__init__(self)
         self.game = game
         self.control_mode = control_mode #"human" or "bot"
@@ -35,18 +35,15 @@ class Ball(pg.sprite.Sprite):
        # if direction == 'l':
         pass
 
-    def update(self ):
-        if self.control_mode == "bot":
-            if self.train_mode:
-                return
-            else:
-                self.step(action)
-        
+    def update(self):
         if self.frozen == True: #implement frozen bug.
             self.vel = vec(0,0)
             self.acc = vec(0,0)
             return
         
+        if self.control_mode == "bot":  #control_mode == bot 일 시 main.step()에서 ball.step 함수를 정의할 것입니다.
+                return
+            
         if self.control_mode == "human":
             self.keys = pg.key.get_pressed()
             self.pressed_keys = [
