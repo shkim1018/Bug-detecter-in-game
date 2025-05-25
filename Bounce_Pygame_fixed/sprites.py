@@ -80,6 +80,14 @@ class Ball(pg.sprite.Sprite):
             self.acc.x = BALL_ACC
         elif action == 2:  # 점프
             self.ball_jump()
+        elif action == 3:  # 점프 & 왼쪽
+            self.acc.x = -BALL_ACC
+            self.ball_jump()
+        elif action == 4:  # 점프 & 오른쪽
+            self.acc.x = BALL_ACC
+            self.ball_jump()
+        elif action == 5:  # 아무 행동도 안함.
+            pass
 
         self.acc.x += self.vel.x * BALL_FRICTION
         self.vel += self.acc

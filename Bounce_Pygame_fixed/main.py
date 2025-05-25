@@ -13,7 +13,7 @@ from datetime import datetime
 import numpy as np
 
 class Game:
-    def __init__(self, model=None, render_mode=False, log_mode=False, bug_mode=True, control_mode="bot", train_mode=True):
+    def __init__(self, model=None, render_mode=True, log_mode=False, bug_mode=False, control_mode="human", train_mode=False):
         pg.init()
         # pg.mixer.init() # We might not use the audio.
         self.model = model
@@ -23,13 +23,19 @@ class Game:
         self.train_mode = train_mode
         self.render_mode = render_mode
 
+        self.step_count = 0
+        self.MAX_STEPS = 5000
+
         self.display_screen = pg.display.set_mode((WIDTH, HEIGHT))
         pg.display.set_caption(TITLE)
         self.clock = pg.time.Clock()
         self.running = True
         self.font_name = pg.font.match_font(FONT_NAME)
         self.pause = False
-        self.flag = 1
+
+        self.clear = False
+        self.stuck = False
+
         self.playing = False
         if self.log_mode:
             base_dir = "log"
@@ -49,7 +55,13 @@ class Game:
             logging.info('Game start!')
         self.elapsed_time = 0 # running time
         self.time = 0 # 로그 전달 용 time(초 단위)
-        self.score = 0
+
+        self.clear = False
+        self.stuck = False
+        self.playing = True
+
+        self.step_count = 0 # train시 step 횟수 관리를 위한 변수.
+
         self.all_sprites = pg.sprite.Group()
         self.platforms = pg.sprite.Group()
         self.spikes = pg.sprite.Group()
@@ -104,19 +116,29 @@ class Game:
             if self.ball.pos.x>2700: #original : 4660
                 if self.log_mode:
                     logging.info(f"[{self.elapsed_time * 0.001 + self.time:.3f}초 로그] 특이사항: 게임 클리어, Ball pos: {self.ball.pos}, vel: {self.ball.vel}, key 입력: {self.ball.pressed_keys}")
-                self.flag=1
+                self.clear = True
                 self.playing = False
-                if self.train_mode:
-                    return
-                else:
-                    self.show_go_screen()
 
+        if not self.train_mode & self.playing == False:
+            self.show_go_screen()
+
+                # if self.train_mode:
+                #     return
+                # else:
+                #     self.show_go_screen()
+ 
     def update(self):
         if self.control_mode == "bot" and not self.train_mode: # 즉 bot을 가지고 자동으로 플레이하고 싶을 때,
-            self.playing = True
             obs = np.array(self._get_observation(), dtype=np.float32).reshape(1, -1)
             action, _ = self.model.predict(obs)
             self.ball.step(action)
+        
+        elif self.control_mode == "bot" and self.train_mode:
+            self.step_count += 1
+            if self.step_count >= self.MAX_STEPS:
+                self.playing = False
+            if self.ball.pos.x>2700:
+                self.playing = False
 
         self.all_sprites.update()
 
@@ -133,7 +155,7 @@ class Game:
                 self.playing = False
                 self.quitgame()
 
-        if self.time >= 20: # training process간소화를 위해 20초 후 게임 종료.
+        if self.train_mode & self.time >= 20: # training process간소화를 위해 20초 후 게임 종료.
             self.playing = False
 
         if self.ball.vel.y > 0:
@@ -168,12 +190,12 @@ class Game:
         if hits:
             if self.log_mode:
                 logging.info(f"[{self.elapsed_time * 0.001 + self.time:.3f}초 로그] 특이사항: 장애물 충돌, Ball pos: {self.ball.pos}, vel: {self.ball.vel}, key 입력: {self.ball.pressed_keys}")
-            self.flag = 0
+            self.stuck = True
             self.playing = False
-            if self.train_mode:
-                return
-            else:
-                self.show_go_screen()
+            # if self.train_mode:
+            #     return
+            # else:
+            #     self.show_go_screen()
 
         self.camera.update(self.ball)
 
@@ -240,10 +262,10 @@ class Game:
         self.time = 0 # 로그 전달 용 time(초 단위)
         while waiting:
             self.display_screen.fill(BACKGROUND_COLOR)
-            if self.flag==1:
+            if self.clear:
                 win = Button(self,"YOU WIN",330,120,0,0,BACKGROUND_COLOR,BACKGROUND_COLOR,100)
                 win.create_button()
-            else:
+            elif self.stuck:
                 win = Button(self,"YOU LOSE",330,120,0,0,BACKGROUND_COLOR,BACKGROUND_COLOR,100)
                 win.create_button()
             restart = Button(self,"RESTART",170,250,120,50,GREEN,DARK_GREEN,20,self.new)
@@ -290,8 +312,7 @@ class Game:
         return obs
 
     def step(self, action): 
-        # print(f"[Ball.step] called with action: {action}")
-        print(f"action: {action}, acc: {self.ball.acc}, vel: {self.ball.vel}, pos: {self.ball.pos}")
+
         if not self.playing:
             return self._get_observation(), 0.0, True, {}
 
@@ -305,6 +326,11 @@ class Game:
         done = not self.playing
         reward = self._get_reward()
         obs = self._get_observation()
+
+        # 5. step 로그 출력
+        # print(f"[Ball.step] called with action: {action}")
+        print(f"action: {action} pos: {self.ball.pos}, reward: {reward}")
+        # print(f"action: {action}, acc: {self.ball.acc}, vel: {self.ball.vel}, pos: {self.ball.pos}")
 
         return obs, reward, done, {}
 
@@ -326,34 +352,20 @@ class Game:
 
     def _get_reward(self):
         # 예시: 오른쪽으로 갈수록 보상 + 장애물에 부딪히면 -10
-        if self.flag == 0:
-            return -10
-        return self.ball.pos.x * 0.02
+        reward = 0
+        if self.stuck:
+            reward += -200
+        pos_reward = self.ball.pos.x * 0.09
+        time_penalty = self.step_count * 0.1
+        if self.clear:
+            reward += 100
+
+        return reward + pos_reward - time_penalty
 
 if __name__ == '__main__':
-    # g = Game()
-    # g.show_start_screen()
-    # while g.running:
-    #     g.new()
-    #     g.show_go_screen()
-    # pg.quit()
-
-
-    import random
-    class DummyAgent:
-        def select_action(self, obs):
-            return random.choice([0, 1, 2])
-
-    if __name__ == '__main__':
-        game = Game()
-        agent = DummyAgent()
-
-        obs = game.reset()
-        done = False
-
-        while not done:
-            action = agent.select_action(obs)
-            obs, reward, done, info = game.step(action)
-            pg.time.delay(16)  # 60 FPS
-
-        game.quitgame()
+    g = Game()
+    g.show_start_screen()
+    while g.running:
+        g.new()
+        g.show_go_screen()
+    pg.quit()
