@@ -4,10 +4,13 @@ import Vector
 vec = Vector.Vec2d
 
 class Ball(pg.sprite.Sprite):
-    def __init__(self,game):
+    def __init__(self,game, control_mode, train_mode):
         pg.sprite.Sprite.__init__(self)
         self.game = game
-        self.image = pg.image.load('Assets/ball2.png').convert()
+        self.control_mode = control_mode #"human" or "bot"
+        self.train_mode = train_mode
+        self.image = pg.image.load('Assets/ball2.png') #bot training을 위해 convert 제외.
+        #self.image = pg.image.load('Assets/ball2.png').convert()
         self.rect = self.image.get_rect()
         self.rect.center = (WIDTH/2,HEIGHT/2)
         self.pos = vec(100,80)
@@ -33,16 +36,20 @@ class Ball(pg.sprite.Sprite):
         pass
 
     def update(self):
-        self.keys = pg.key.get_pressed()
-        self.pressed_keys = [
-            name for keycode, name in self.tracked_keys.items()
-            if self.keys[keycode]
-        ]
         if self.frozen == True: #implement frozen bug.
             self.vel = vec(0,0)
             self.acc = vec(0,0)
-
-        else:
+            return
+        
+        if self.control_mode == "bot":  #control_mode == bot 일 시 main.step()에서 ball.step 함수를 정의할 것입니다.
+            return
+            
+        if self.control_mode == "human":
+            self.keys = pg.key.get_pressed()
+            self.pressed_keys = [
+                name for keycode, name in self.tracked_keys.items()
+                if self.keys[keycode]
+            ]
             self.acc = vec(0,BALL_GRAVITY)
             if self.keys[pg.K_LEFT]:
                 self.acc.x = -BALL_ACC
@@ -60,6 +67,36 @@ class Ball(pg.sprite.Sprite):
                 self.pos.x = WIDTH
 
             self.rect.midbottom = self.pos
+    
+    def step(self, action):
+        if self.frozen:
+            return
+
+        self.acc = vec(0, BALL_GRAVITY)
+
+        if action == 0:  # 왼쪽
+            self.acc.x = -BALL_ACC
+        elif action == 1:  # 오른쪽
+            self.acc.x = BALL_ACC
+        elif action == 2:  # 점프
+            self.ball_jump()
+        elif action == 3:  # 점프 & 왼쪽
+            self.acc.x = -BALL_ACC
+            self.ball_jump()
+        elif action == 4:  # 점프 & 오른쪽
+            self.acc.x = BALL_ACC
+            self.ball_jump()
+        elif action == 5:  # 아무 행동도 안함.
+            pass
+
+        self.acc.x += self.vel.x * BALL_FRICTION
+        self.vel += self.acc
+        self.pos += self.vel + 0.5 * self.acc
+        
+        if self.pos.x < 0:
+            self.pos.x = WIDTH
+        self.rect.midbottom = self.pos
+
 
 
 
@@ -85,7 +122,8 @@ class Wall(pg.sprite.Sprite):
 class Spikes(pg.sprite.Sprite):
     def __init__(self,x_pos,y_pos):
         pg.sprite.Sprite.__init__(self)
-        self.image = pg.image.load('Assets/spike.png').convert()
+        self.image = pg.image.load('Assets/spike.png')
+        # self.image = pg.image.load('Assets/spike.png').convert()
         self.rect = self.image.get_rect()
         self.rect.x = x_pos
         self.rect.y = y_pos
@@ -93,7 +131,8 @@ class Spikes(pg.sprite.Sprite):
 class Spikes_bug(pg.sprite.Sprite):
     def __init__(self,x_pos,y_pos):
         pg.sprite.Sprite.__init__(self)
-        self.image = pg.image.load('Assets/spike.png').convert()
+        self.image = pg.image.load('Assets/spike.png')
+        # self.image = pg.image.load('Assets/spike.png').convert()
         self.rect = self.image.get_rect()
         self.rect.x = x_pos
         self.rect.y = y_pos
