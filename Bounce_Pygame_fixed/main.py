@@ -33,9 +33,10 @@ class Game:
         self.font_name = pg.font.match_font(FONT_NAME)
         self.pause = False
 
+        self.bot_tracked_keys = ['left', 'right', 'jump', 'left_jump', 'right_jump', 'stop']
+
         self.clear = False
         self.stuck = False
-
         self.playing = False
         if self.log_mode:
             base_dir = "log"
@@ -131,8 +132,10 @@ class Game:
         if self.control_mode == "bot" and not self.train_mode: # 즉 bot을 가지고 자동으로 플레이하고 싶을 때,
             obs = np.array(self._get_observation(), dtype=np.float32).reshape(1, -1)
             action, _ = self.model.predict(obs)
+            self.ball.pressed_keys = self.bot_tracked_keys[action[0]]
             self.ball.step(action)
         
+
         elif self.control_mode == "bot" and self.train_mode:
             self.step_count += 1
             if self.step_count >= self.MAX_STEPS:
@@ -261,6 +264,7 @@ class Game:
         self.elapsed_time = 0 # running time
         self.time = 0 # 로그 전달 용 time(초 단위)
         while waiting:
+            pg.event.pump()
             self.display_screen.fill(BACKGROUND_COLOR)
             if self.clear:
                 win = Button(self,"YOU WIN",330,120,0,0,BACKGROUND_COLOR,BACKGROUND_COLOR,100)
@@ -279,6 +283,8 @@ class Game:
                     pg.quit()
                     sys.exit()
             pg.display.update()
+            # if time.time() - start_time > 3.0:
+            #     waiting = False
 
     def quitgame(self):
         pg.quit()

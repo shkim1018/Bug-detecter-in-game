@@ -42,7 +42,7 @@ class Ball(pg.sprite.Sprite):
             return
         
         if self.control_mode == "bot":  #control_mode == bot 일 시 main.step()에서 ball.step 함수를 정의할 것입니다.
-                return
+            return
             
         if self.control_mode == "human":
             self.keys = pg.key.get_pressed()
