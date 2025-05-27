@@ -22,7 +22,7 @@ class Game:
         self.control_mode = control_mode # "bot" or "human"
         self.train_mode = train_mode
         self.render_mode = render_mode
-
+        
         self.step_count = 0
         self.MAX_STEPS = 5000
 
@@ -42,12 +42,11 @@ class Game:
             base_dir = "log"
             os.makedirs(base_dir, exist_ok=True)
             self.logging_name = str(datetime.now()) + ".log"
-            self.logging_name = os.path.join(base_dir, self.logging_name)
             logging.basicConfig(
                 level=logging.DEBUG,  # 기본 로그 레벨 설정
                 format='[%(levelname)s] %(message)s',
                 handlers=[
-                    logging.FileHandler(self.logging_name)       # 파일로도 저장
+                    logging.FileHandler(os.path.join(base_dir, self.logging_name))       # 파일로도 저장
                     # logging.StreamHandler()                # 콘솔에도 출력
                 ]
                 )
@@ -120,6 +119,9 @@ class Game:
                 self.clear = True
                 self.playing = False
 
+        if self.running == False:
+            self.quitgame()
+
         if not self.train_mode & self.playing == False:
             self.show_go_screen()
 
@@ -135,7 +137,6 @@ class Game:
             self.ball.pressed_keys = self.bot_tracked_keys[action[0]]
             self.ball.step(action)
         
-
         elif self.control_mode == "bot" and self.train_mode:
             self.step_count += 1
             if self.step_count >= self.MAX_STEPS:
@@ -156,7 +157,7 @@ class Game:
                 self.ball.frozen = True
             if self.time >= 20:
                 self.playing = False
-                self.quitgame()
+                self.running = False
 
         if self.train_mode & self.time >= 20: # training process간소화를 위해 20초 후 게임 종료.
             self.playing = False
@@ -264,7 +265,6 @@ class Game:
         self.elapsed_time = 0 # running time
         self.time = 0 # 로그 전달 용 time(초 단위)
         while waiting:
-            pg.event.pump()
             self.display_screen.fill(BACKGROUND_COLOR)
             if self.clear:
                 win = Button(self,"YOU WIN",330,120,0,0,BACKGROUND_COLOR,BACKGROUND_COLOR,100)
@@ -281,13 +281,14 @@ class Game:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     pg.quit()
-                    sys.exit()
             pg.display.update()
             # if time.time() - start_time > 3.0:
             #     waiting = False
 
     def quitgame(self):
         pg.quit()
+        for handler in logging.root.handlers[:]:
+            logging.root.removeHandler(handler)
         # quit()
 
     def show_instruction(self):
